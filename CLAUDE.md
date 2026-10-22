@@ -5,6 +5,7 @@ Menu-bar helper for macOS 27 that stops built-in Dictation when Return is presse
 ## Commands
 - `./build.sh` builds `build/Speakeasy.app`, signs it with the DGR Labs Developer ID, installs it to `~/Applications`, and relaunches it.
 - `./build.sh --no-install` builds and signs only.
+- The app icon is `Speakeasy.icon` (Icon Composer format, hand-written `icon.json` plus SVG layers). `build.sh` compiles it with `actool` into `Assets.car` and `Speakeasy.icns`. To preview it, run `ictool` from `Icon Composer.app/Contents/Executables` with `--export-image`.
 - `swiftc -O probe/probe.swift -o probe/probe` builds the diagnostic probe (window and mic-input logger).
 
 ## How it works

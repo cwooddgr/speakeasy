@@ -11,7 +11,11 @@ DEST="$HOME/Applications/Speakeasy.app"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/Resources"
 cp Info.plist "$APP/Contents/Info.plist"
+xcrun actool Speakeasy.icon --compile "$APP/Contents/Resources" --app-icon Speakeasy \
+    --platform macosx --target-device mac --minimum-deployment-target 27.0 \
+    --include-all-app-icons --output-partial-info-plist build/icon-partial.plist >/dev/null
 swiftc -O -target arm64-apple-macosx27.0 Sources/*.swift -o "$APP/Contents/MacOS/Speakeasy"
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
 codesign --verify --strict "$APP"

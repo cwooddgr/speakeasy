@@ -8,6 +8,10 @@
 	<string>Speakeasy</string>
 	<key>CFBundleDisplayName</key>
 	<string>Speakeasy</string>
+	<key>CFBundleIconName</key>
+	<string>Speakeasy</string>
+	<key>CFBundleIconFile</key>
+	<string>Speakeasy</string>
 	<key>CFBundleExecutable</key>
 	<string>Speakeasy</string>
 	<key>CFBundlePackageType</key>
