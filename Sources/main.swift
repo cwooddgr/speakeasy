@@ -22,6 +22,8 @@ let syntheticMarker: Int64 = 0x5350_4B45 // "SPKE"
 let stopTimeout: TimeInterval = 3.0
 let stopDictationIdentifier = "stopDictation:"
 let enabledKey = "enabled"
+let openAtLoginKey = "openAtLogin"
+let loginItemPathKey = "loginItemPath"
 
 // MARK: - Dictation state from the system log
 
@@ -253,7 +255,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         monitor.onChange = { [weak self] _ in self?.updateIcon() }
         monitor.start()
 
-        registerLoginItemOnFirstLaunch()
+        syncLoginItem()
         ensureAccessibility(prompt: true)
         updateIcon()
     }
@@ -279,12 +281,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Login item
 
-    private func registerLoginItemOnFirstLaunch() {
-        let key = "didRegisterLoginItem"
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
+    // The login item records the app's path when registered, so re-register after the
+    // app moves (e.g. from ~/Applications to /Applications).
+    private func syncLoginItem() {
+        let defaults = UserDefaults.standard
+        defaults.register(defaults: [openAtLoginKey: true])
+        guard defaults.bool(forKey: openAtLoginKey) else { return }
+        let path = Bundle.main.bundlePath
+        if SMAppService.mainApp.status == .enabled && defaults.string(forKey: loginItemPathKey) == path { return }
+        try? SMAppService.mainApp.unregister()
         do {
             try SMAppService.mainApp.register()
-            UserDefaults.standard.set(true, forKey: key)
+            defaults.set(path, forKey: loginItemPathKey)
         } catch {
             NSLog("Speakeasy: login item registration failed: \(error)")
         }
@@ -352,11 +360,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func toggleLogin() {
+        let defaults = UserDefaults.standard
         do {
             if SMAppService.mainApp.status == .enabled {
                 try SMAppService.mainApp.unregister()
+                defaults.set(false, forKey: openAtLoginKey)
             } else {
                 try SMAppService.mainApp.register()
+                defaults.set(true, forKey: openAtLoginKey)
+                defaults.set(Bundle.main.bundlePath, forKey: loginItemPathKey)
             }
         } catch {
             NSLog("Speakeasy: login item toggle failed: \(error)")

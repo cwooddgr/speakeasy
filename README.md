@@ -24,7 +24,7 @@ You need a Mac running macOS 27 with Xcode 27 installed. Xcode supplies `actool`
 ./build.sh
 ```
 
-That builds `build/Speakeasy.app`, compiles the app icon from `Speakeasy.icon` (an Icon Composer file you can open in Icon Composer to edit), signs the app, copies it to `~/Applications`, and launches it. Use `./build.sh --no-install` to build and sign without installing.
+That builds `build/Speakeasy.app`, compiles the app icon from `Speakeasy.icon` (an Icon Composer file you can open in Icon Composer to edit), signs the app, copies it to `/Applications`, and launches it. Use `./build.sh --no-install` to build and sign without installing.
 
 On first launch, macOS asks you to give Speakeasy Accessibility access, which it needs to see the Return key and press the menu item. It also adds itself to your login items. You can turn either feature off from the menu-bar icon.
 

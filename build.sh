@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Builds Speakeasy.app, signs it with our Developer ID, and installs it to ~/Applications.
+# Builds Speakeasy.app, signs it, and installs it to /Applications.
 # Usage: ./build.sh            build + install + relaunch
 #        ./build.sh --no-install
 set -euo pipefail
@@ -18,7 +18,7 @@ if [[ "$IDENTITY" != "-" ]] && ! security find-identity -v -p codesigning | grep
     echo "note: signing identity not found, signing ad-hoc"
     IDENTITY="-"
 fi
-DEST="$HOME/Applications/Speakeasy.app"
+DEST="/Applications/Speakeasy.app"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
@@ -40,7 +40,7 @@ echo "built $APP"
 
 pkill -x Speakeasy || true
 rm -rf "$DEST"
-mkdir -p "$HOME/Applications"
+
 cp -R "$APP" "$DEST"
 open "$DEST"
 echo "installed and launched $DEST"
