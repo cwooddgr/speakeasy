@@ -1,6 +1,6 @@
 # Speakeasy
 
-Menu-bar helper for macOS 27 that stops built-in Dictation when Return is pressed, then lets the Return through. Tier 3, personal tool (started 2026-10-21).
+Menu-bar helper for macOS 27 that stops built-in Dictation when Return is pressed, then lets the Return through. Tier 2, listed under "Also from the Labs" on dgrlabs.co (decided-by-user 2026-10-22). Public repo, MIT. Started 2026-10-21.
 
 ## Commands
 - `./build.sh` builds `build/Speakeasy.app`, signs it with the DGR Labs Developer ID, installs it to `~/Applications`, and relaunches it.
