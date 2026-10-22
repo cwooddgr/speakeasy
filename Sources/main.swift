@@ -1,9 +1,14 @@
 // Speakeasy: stops macOS Dictation when you press Return, then lets the Return through.
 //
-// Dictation state comes from DictationIM's log lines ("Keyboard Dictation: Update
-// Dictation State: N", 1 = listening, 0 = stopped), read via `log stream`. When Return is
-// pressed while listening, we swallow it, send Escape (an Apple-supported stop key that
-// keeps the dictated text), wait for state 0, and then replay the Return.
+// Dictation state comes from DictationIM's log lines, read via `log stream`:
+//   "Keyboard Dictation: Update Dictation State: N"  1 = listening, 2 = stopping, 0 = stopped
+//   "+[AFAggregator logDictation<Outcome>]"          session finished (Succeeded, Cancelled, ...)
+// When Return is pressed while listening, we swallow it and press the focused app's
+// Edit > Stop Dictation menu item (AXIdentifier "stopDictation:"). That takes the same path
+// as the mic key and finishes transcribing pending audio. Escape is only a fallback for apps
+// without that item, because Escape cancels and drops audio still being processed. Once the
+// session reports its outcome we replay the Return. A Return that lands during state 2
+// makes Dictation resume listening, so we must wait for the full stop.
 
 import AppKit
 import ApplicationServices
@@ -14,18 +19,21 @@ let kKeypadEnter: CGKeyCode = 76
 let kEscape: CGKeyCode = 53
 // Tags our own synthetic events so the tap lets them pass.
 let syntheticMarker: Int64 = 0x5350_4B45 // "SPKE"
-let stopTimeout: TimeInterval = 0.4
+let stopTimeout: TimeInterval = 3.0
+let stopDictationIdentifier = "stopDictation:"
 let enabledKey = "enabled"
 
 // MARK: - Dictation state from the system log
 
 final class DictationMonitor {
     private(set) var isListening = false
+    // Bumped each time a session reports its outcome.
+    private(set) var finishedSessions = 0
     var onChange: ((Bool) -> Void)?
     private var process: Process?
 
     private static let predicate =
-        #"process == "DictationIM" AND eventMessage CONTAINS "Update Dictation State""#
+        #"process == "DictationIM" AND (eventMessage CONTAINS "Update Dictation State" OR eventMessage CONTAINS "AFAggregator logDictation")"#
 
     func start() {
         seedFromRecentLog()
@@ -45,7 +53,7 @@ final class DictationMonitor {
         p.waitUntilExit()
         let lines = String(decoding: data, as: UTF8.self).split(separator: "\n")
         if let state = lines.compactMap({ Self.parseState(String($0)) }).last {
-            isListening = (state == 1)
+            isListening = (state != 0)
         }
     }
 
@@ -65,7 +73,9 @@ final class DictationMonitor {
                 let line = String(buffer[..<nl])
                 buffer.removeSubrange(...nl)
                 if let state = Self.parseState(line) {
-                    DispatchQueue.main.async { self?.update(state == 1) }
+                    DispatchQueue.main.async { self?.update(state != 0) }
+                } else if Self.isSessionFinished(line) {
+                    DispatchQueue.main.async { self?.finishedSessions += 1 }
                 }
             }
         }
@@ -94,6 +104,10 @@ final class DictationMonitor {
     static func parseState(_ line: String) -> Int? {
         guard let r = line.range(of: "Update Dictation State: ") else { return nil }
         return Int(line[r.upperBound...].prefix { $0.isNumber })
+    }
+
+    static func isSessionFinished(_ line: String) -> Bool {
+        line.contains("AFAggregator logDictation") && !line.contains("logDictationStarted")
     }
 
     func stop() {
@@ -163,17 +177,49 @@ final class ReturnInterceptor {
     }
 
     private func stopDictationThenReturn(key: CGKeyCode, flags: CGEventFlags) {
-        postKey(kEscape, flags: [])
+        let sessionsBefore = monitor.finishedSessions
+        let usedMenu = pressStopDictationMenuItem()
+        if !usedMenu { postKey(kEscape, flags: []) }
+        NSLog("Speakeasy: Return while dictating; stopped via %@", usedMenu ? "menu" : "Escape")
         let deadline = Date().addingTimeInterval(stopTimeout)
         func waitThenReturn() {
-            if monitor.isListening && Date() < deadline {
+            // Escape discards pending audio, so state 0 is enough there; the menu path
+            // keeps transcribing after state 0 until the session reports its outcome.
+            let done = usedMenu ? monitor.finishedSessions > sessionsBefore : !monitor.isListening
+            if !done && Date() < deadline {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: waitThenReturn)
                 return
             }
+            NSLog("Speakeasy: replaying Return (%@)", done ? "session finished" : "timed out")
             postKey(key, flags: flags)
             pending = false
         }
         waitThenReturn()
+    }
+
+    // Presses Edit > Stop Dictation in the frontmost app. Returns false if it has none.
+    private func pressStopDictationMenuItem() -> Bool {
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return false }
+        let app = AXUIElementCreateApplication(pid)
+        guard let bar: AXUIElement = axAttribute(app, kAXMenuBarAttribute) else { return false }
+        for top in axChildren(bar) {
+            for menu in axChildren(top) {
+                for item in axChildren(menu) where axAttribute(item, "AXIdentifier") as String? == stopDictationIdentifier {
+                    return AXUIElementPerformAction(item, kAXPressAction as CFString) == .success
+                }
+            }
+        }
+        return false
+    }
+
+    private func axAttribute<T>(_ element: AXUIElement, _ name: String) -> T? {
+        var value: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value as? T
+    }
+
+    private func axChildren(_ element: AXUIElement) -> [AXUIElement] {
+        axAttribute(element, kAXChildrenAttribute) ?? []
     }
 
     private func postKey(_ key: CGKeyCode, flags: CGEventFlags) {
