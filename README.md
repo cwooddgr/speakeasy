@@ -37,3 +37,7 @@ The icon shows a return arrow while Speakeasy is waiting and a microphone while 
 ## Probe
 
 `probe/probe.swift` is the diagnostic tool we used to look for a reliable "Dictation is on" signal. It logs on-screen windows and which processes are using the microphone. Neither turned out to be reliable, which is why Speakeasy reads the log instead. Build it with `swiftc -O probe/probe.swift -o probe/probe`.
+
+## License
+
+MIT. See `LICENSE`.
