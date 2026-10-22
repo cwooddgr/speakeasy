@@ -2,3 +2,4 @@ build/
 probe/probe
 probe/*.log
 .DS_Store
+.signing-identity

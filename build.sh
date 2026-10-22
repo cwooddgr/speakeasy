@@ -6,10 +6,14 @@ set -euo pipefail
 cd "${0:A:h}"
 
 APP=build/Speakeasy.app
-# Signing identity: $SPEAKEASY_SIGN_IDENTITY if set, else DGR Labs' Developer ID if it's in
-# the keychain, else ad-hoc ("-"). Ad-hoc builds work, but macOS forgets the Accessibility
-# grant after each rebuild.
-IDENTITY="${SPEAKEASY_SIGN_IDENTITY:-Developer ID Application: YOUR NAME (TEAMID)}"
+# Signing identity: $SPEAKEASY_SIGN_IDENTITY if set, else the first line of the untracked
+# .signing-identity file, else ad-hoc ("-"). Ad-hoc builds work, but macOS forgets the
+# Accessibility grant after each rebuild.
+IDENTITY="${SPEAKEASY_SIGN_IDENTITY:-}"
+if [[ -z "$IDENTITY" && -f .signing-identity ]]; then
+    IDENTITY="$(head -n 1 .signing-identity)"
+fi
+IDENTITY="${IDENTITY:--}"
 if [[ "$IDENTITY" != "-" ]] && ! security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\""; then
     echo "note: signing identity not found, signing ad-hoc"
     IDENTITY="-"

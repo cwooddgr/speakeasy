@@ -28,7 +28,7 @@ That builds `build/Speakeasy.app`, compiles the app icon from `Speakeasy.icon` (
 
 On first launch, macOS asks you to give Speakeasy Accessibility access, which it needs to see the Return key and press the menu item. It also adds itself to your login items. You can turn either feature off from the menu-bar icon.
 
-If you have no Developer ID certificate, `build.sh` signs the app ad-hoc, and that works fine. The catch is that macOS ties the Accessibility permission to the signature, and an ad-hoc signature changes with every build. After each rebuild you'll need to remove Speakeasy from the Accessibility list in System Settings and add it again. If you have your own Developer ID, run `SPEAKEASY_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./build.sh` and the permission will carry over between builds.
+If you have no Developer ID certificate, `build.sh` signs the app ad-hoc, and that works fine. The catch is that macOS ties the Accessibility permission to the signature, and an ad-hoc signature changes with every build. After each rebuild you'll need to remove Speakeasy from the Accessibility list in System Settings and add it again. If you have your own Developer ID, put its full name (for example `Developer ID Application: Your Name (TEAMID)`) on the first line of a file called `.signing-identity` in the repo folder, or set `SPEAKEASY_SIGN_IDENTITY` to it. Git ignores that file. With a Developer ID signature, the permission carries over between builds.
 
 ## Privacy
 
