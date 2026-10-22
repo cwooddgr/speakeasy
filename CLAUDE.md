@@ -9,18 +9,12 @@ Menu-bar helper for macOS 27 that stops built-in Dictation when Return is presse
 - The app icon is `Speakeasy.icon` (Icon Composer format, hand-written `icon.json` plus SVG layers). `build.sh` compiles it with `actool` into `Assets.car` and `Speakeasy.icns`. To preview it, run `ictool` from `Icon Composer.app/Contents/Executables` with `--export-image`.
 - `swiftc -O probe/probe.swift -o probe/probe` builds the diagnostic probe (window and mic-input logger).
 
-## How it works
-- Dictation state comes from DictationIM's unified-log lines, read through a `/usr/bin/log stream` child process: `Keyboard Dictation: Update Dictation State: N` (1 = listening, 2 = stopping, 0 = stopped) and `+[AFAggregator logDictation<Outcome>]` (session finished). This wording is undocumented; if a macOS update changes it, the helper goes inert and Return behaves normally.
-- A `CGEventTap` swallows Return or keypad Enter while listening, then presses the front app's Edit > Stop Dictation menu item through Accessibility (`AXIdentifier` `stopDictation:`, locale-independent). That's the same "stop listening" path the mic key uses, so pending audio finishes transcribing. The helper waits for the session outcome (up to 3 s), then replays the key with its original modifiers. Synthetic events carry `eventSourceUserData = 0x5350_4B45`.
-- Fallback for apps without that menu item: Escape, then wait for state 0. Escape ends the session as Cancelled and drops audio still being processed.
-- A Return delivered during state 2 makes Dictation resume listening, which is why we wait for the full stop.
-- Needs Accessibility permission. It's signed with a stable Developer ID, so the grant survives rebuilds.
+## Architecture
+- `Sources/main.swift` is the whole app: `DictationMonitor` follows DictationIM's unified-log lines through `/usr/bin/log stream`; `ReturnInterceptor` is a `CGEventTap` that, on Return while listening, presses the front app's Edit > Stop Dictation (`AXIdentifier` `stopDictation:`) and replays the key once the session reports its outcome. The fallback is Escape. The menu-bar UI and login item live in `AppDelegate`.
+- Mechanism detail, log signals, and probe findings: `docs/dictation-findings.md`. Decisions: `docs/decisions.md`. Status history: `docs/status.md`.
 
-## Findings (2026-10-21 probe, macOS 27.0.1)
-- No new process takes mic input during Dictation (`corespeechd` already holds it), so mic-in-use is not a usable signal.
-- The in-app dictation bubble (an 84×77 window at layer 3, owned by the focused app) hides mid-session, so it's unreliable.
-- The Window Server `StatusIndicator` lags the stop by about 1 s.
-- Escape logs `logDictationCancelled`; the mic key and the Stop Dictation menu item log `stop listening` and then `logDictationSucceeded` 100–400 ms later.
-- The menu item's identifier is `startDictation:` when idle and `stopDictation:` while active. After a silent session that fails (error 1110), it can stick on "Cancel Dictation" until pressed.
+## Standing rules
+- Never commit the signing identity; it stays in `.signing-identity` (decided-by-user 2026-10-22, see `docs/decisions.md`).
+- The repo is public: audit for private data before every push (decided-by-user 2026-10-22).
 
-Status: v1 working in TextEdit (Charlie confirmed 2026-10-22); not yet tried in other apps.
+Status: v1.0 installed at `/Applications/Speakeasy.app` and working in TextEdit; public at github.com/cwooddgr/speakeasy (MIT); dgrlabs.co listing handed to the dgrlabs-co session 2026-10-22, not confirmed live.
