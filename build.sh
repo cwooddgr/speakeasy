@@ -6,7 +6,14 @@ set -euo pipefail
 cd "${0:A:h}"
 
 APP=build/Speakeasy.app
-IDENTITY="Developer ID Application: YOUR NAME (TEAMID)"
+# Signing identity: $SPEAKEASY_SIGN_IDENTITY if set, else DGR Labs' Developer ID if it's in
+# the keychain, else ad-hoc ("-"). Ad-hoc builds work, but macOS forgets the Accessibility
+# grant after each rebuild.
+IDENTITY="${SPEAKEASY_SIGN_IDENTITY:-Developer ID Application: YOUR NAME (TEAMID)}"
+if [[ "$IDENTITY" != "-" ]] && ! security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\""; then
+    echo "note: signing identity not found, signing ad-hoc"
+    IDENTITY="-"
+fi
 DEST="$HOME/Applications/Speakeasy.app"
 
 rm -rf "$APP"
@@ -17,7 +24,11 @@ xcrun actool Speakeasy.icon --compile "$APP/Contents/Resources" --app-icon Speak
     --platform macosx --target-device mac --minimum-deployment-target 27.0 \
     --include-all-app-icons --output-partial-info-plist build/icon-partial.plist >/dev/null
 swiftc -O -target arm64-apple-macosx27.0 Sources/*.swift -o "$APP/Contents/MacOS/Speakeasy"
-codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
+if [[ "$IDENTITY" == "-" ]]; then
+    codesign --force --sign - "$APP"
+else
+    codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
+fi
 codesign --verify --strict "$APP"
 echo "built $APP"
 

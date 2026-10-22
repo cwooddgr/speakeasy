@@ -18,17 +18,21 @@ The log lines Speakeasy watches aren't documented by Apple. If a macOS update ch
 
 ## Building
 
-You need Xcode's command-line tools and a Developer ID certificate.
+You need a Mac running macOS 27 with Xcode 27 installed. Xcode supplies `actool` for the icon as well as the Swift compiler.
 
 ```
 ./build.sh
 ```
 
-That builds `build/Speakeasy.app`, compiles the app icon from `Speakeasy.icon` (an Icon Composer file you can open in Icon Composer to edit), signs the app, copies it to `~/Applications`, and launches it. Use `./build.sh --no-install` to build and sign without installing. To sign with a different certificate, change `IDENTITY` at the top of `build.sh`.
+That builds `build/Speakeasy.app`, compiles the app icon from `Speakeasy.icon` (an Icon Composer file you can open in Icon Composer to edit), signs the app, copies it to `~/Applications`, and launches it. Use `./build.sh --no-install` to build and sign without installing.
 
 On first launch, macOS asks you to give Speakeasy Accessibility access, which it needs to see the Return key and press the menu item. It also adds itself to your login items. You can turn either feature off from the menu-bar icon.
 
-Signing with the same certificate each time keeps the Accessibility permission working across rebuilds.
+If you have no Developer ID certificate, `build.sh` signs the app ad-hoc, and that works fine. The catch is that macOS ties the Accessibility permission to the signature, and an ad-hoc signature changes with every build. After each rebuild you'll need to remove Speakeasy from the Accessibility list in System Settings and add it again. If you have your own Developer ID, run `SPEAKEASY_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./build.sh` and the permission will carry over between builds.
+
+## Privacy
+
+Speakeasy watches the keyboard because it has to catch Return, but it ignores every other key. It never records or stores what you type and makes no network connections. The only thing it reads from the system log is Dictation's own on and off messages. The source is short, and `Sources/main.swift` is the whole app if you want to check.
 
 ## The menu-bar icon
 
